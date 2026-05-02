@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",
+    "csv-parse": "^6.2.1",
     "drizzle-orm": "^0.45.2",
     "iron-session": "^8.0.4",
     "next": "16.2.4",
@@ -33,6 +34,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
