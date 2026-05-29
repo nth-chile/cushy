@@ -4,8 +4,6 @@ export const clients = pgTable("clients", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   company: text("company"),
-  address: text("address"),
-  notes: text("notes"),
   hourlyRate: numeric("hourly_rate", { precision: 10, scale: 2 }),
   emailSubjectTemplate: text("email_subject_template"),
   emailBodyTemplate: text("email_body_template"),
@@ -35,9 +33,7 @@ export const invoices = pgTable("invoices", {
   number: integer("number").notNull().unique(),
   clientId: integer("client_id").notNull().references(() => clients.id, { onDelete: "restrict" }),
   issuedDate: date("issued_date").notNull(),
-  dueDate: date("due_date"),
   paidDate: date("paid_date"),
-  notes: text("notes"),
   status: text("status").notNull().default("draft"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -54,10 +50,7 @@ export const invoiceLineItems = pgTable("invoice_line_items", {
 export const settings = pgTable("settings", {
   id: integer("id").primaryKey().default(1),
   businessName: text("business_name"),
-  businessAddress: text("business_address"),
   businessEmail: text("business_email"),
   invoiceNumberStart: integer("invoice_number_start").default(1000).notNull(),
-  defaultEmailSubject: text("default_email_subject"),
-  defaultEmailBody: text("default_email_body"),
   gmailUser: text("gmail_user"),
 });

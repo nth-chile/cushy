@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { invoices, invoiceLineItems, clients, contacts, settings } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { InvoicePDF } from "@/lib/pdf/invoice";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { sendInvoiceEmail } from "@/lib/email";
@@ -28,23 +28,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     .where(eq(invoiceLineItems.invoiceId, invoiceId))
     .orderBy(invoiceLineItems.position);
   const [setting] = await db.select().from(settings).where(eq(settings.id, 1));
+  const [contact] = await db
+    .select()
+    .from(contacts)
+    .where(eq(contacts.clientId, invoice.clientId))
+    .orderBy(desc(contacts.isPrimary), contacts.id);
 
   const buffer = await renderToBuffer(
     InvoicePDF({
       data: {
         number: invoice.number,
         issuedDate: invoice.issuedDate,
-        dueDate: invoice.dueDate,
-        notes: invoice.notes,
         business: {
           name: setting?.businessName ?? null,
-          address: setting?.businessAddress ?? null,
           email: setting?.businessEmail ?? null,
         },
         client: {
           name: client.name,
           company: client.company,
-          address: client.address,
+          email: contact?.email ?? null,
         },
         lineItems: items.map((i) => ({
           description: i.description,
@@ -69,6 +71,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 
-  await db.update(invoices).set({ status: "sent" }).where(eq(invoices.id, invoiceId));
+  // Mark as sent once emailed, but don't downgrade a paid invoice.
+  if (invoice.status === "draft" && !invoice.paidDate) {
+    await db.update(invoices).set({ status: "sent" }).where(eq(invoices.id, invoiceId));
+  }
+
   return NextResponse.json({ ok: true });
 }

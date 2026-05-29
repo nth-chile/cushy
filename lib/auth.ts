@@ -5,6 +5,9 @@ export type Session = {
   loggedIn?: boolean;
 };
 
+// Skip the login screen on the local dev server; the deployed app stays gated.
+export const authDisabled = process.env.NODE_ENV !== "production";
+
 const sessionPassword = process.env.SESSION_SECRET;
 if (!sessionPassword || sessionPassword.length < 32) {
   if (process.env.NODE_ENV !== "production") {

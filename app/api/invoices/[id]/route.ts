@@ -45,9 +45,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   const update: Partial<typeof invoices.$inferInsert> = {};
   if (body.issuedDate !== undefined) update.issuedDate = body.issuedDate;
-  if (body.dueDate !== undefined) update.dueDate = body.dueDate || null;
   if (body.paidDate !== undefined) update.paidDate = body.paidDate || null;
-  if (body.notes !== undefined) update.notes = body.notes;
   if (body.status !== undefined) update.status = body.status;
 
   if (Object.keys(update).length) {

@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { Key } from "@heroui/react";
+import { Button, Input, ListBox, Select, TextField } from "@heroui/react";
 import { formatDuration, localDateInput, todayISO } from "@/lib/time";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type ClientOpt = { id: number; name: string };
 type Entry = {
@@ -19,22 +22,25 @@ export default function TimeView({ clients }: { clients: ClientOpt[] }) {
   const [date, setDate] = useState(todayISO());
   const [entries, setEntries] = useState<Entry[]>([]);
   const [timer, setTimer] = useState<Timer>(null);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [timerClientId, setTimerClientId] = useState<number | "">(clients[0]?.id ?? "");
   const [timerNotes, setTimerNotes] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     const [e, t] = await Promise.all([
       fetch(`/api/time-entries?date=${date}`).then((r) => r.json()),
       fetch(`/api/time-entries/timer`).then((r) => r.json()),
     ]);
     setEntries(e);
     setTimer(t);
-  }
+  }, [date]);
 
   useEffect(() => {
+    // load() only setStates after awaiting the fetch, not synchronously.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
-  }, [date]);
+  }, [load]);
 
   useEffect(() => {
     const i = setInterval(() => setNow(Date.now()), 1000);
@@ -84,7 +90,7 @@ export default function TimeView({ clients }: { clients: ClientOpt[] }) {
   }
 
   async function deleteEntry(id: number) {
-    if (!confirm("Delete entry?")) return;
+    setConfirmDeleteId(null);
     await fetch(`/api/time-entries/${id}`, { method: "DELETE" });
     load();
   }
@@ -101,75 +107,87 @@ export default function TimeView({ clients }: { clients: ClientOpt[] }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Time</h1>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        />
+        <TextField value={date} onChange={setDate} aria-label="Date" className="w-40">
+          <Input type="date" />
+        </TextField>
       </div>
 
-      <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+      <div className="rounded-lg border border-default p-4">
         {timer ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-sm text-zinc-500">Running</div>
+              <div className="text-sm text-muted">Running</div>
               <div className="text-2xl font-mono">{formatDuration(runningMs)}</div>
               <div className="text-sm">
                 {clients.find((c) => c.id === timer.clientId)?.name ?? "—"}
                 {timer.notes ? ` · ${timer.notes}` : ""}
               </div>
             </div>
-            <button onClick={stopTimer} className="rounded-md bg-red-600 px-4 py-2 text-sm text-white">
+            <Button variant="danger" size="sm" onPress={stopTimer}>
               Stop
-            </button>
+            </Button>
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={timerClientId}
-              onChange={(e) => setTimerClientId(e.target.value ? Number(e.target.value) : "")}
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            <Select
+              aria-label="Client"
+              value={timerClientId === "" ? null : timerClientId}
+              onChange={(k: Key | null) => setTimerClientId(k == null ? "" : Number(k))}
+              className="w-48"
             >
-              {clients.length === 0 && <option value="">No clients yet</option>}
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <input
-              placeholder="What are you working on?"
+              <Select.Trigger className="border border-default bg-surface-secondary">
+                <Select.Value />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover>
+                <ListBox>
+                  {clients.map((c) => (
+                    <ListBox.Item key={c.id} id={c.id} textValue={c.name}>
+                      {c.name}
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
+            <TextField
               value={timerNotes}
-              onChange={(e) => setTimerNotes(e.target.value)}
-              className="flex-1 min-w-48 rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-            <button
-              onClick={startTimer}
-              disabled={!timerClientId}
-              className="rounded-md bg-green-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+              onChange={setTimerNotes}
+              aria-label="What are you working on?"
+              className="flex-1 min-w-48"
             >
+              <Input placeholder="What are you working on?" />
+            </TextField>
+            <Button variant="primary" size="sm" onPress={startTimer} isDisabled={!timerClientId}>
               Start
-            </button>
+            </Button>
           </div>
         )}
       </div>
 
       <div className="flex items-center justify-between">
-        <div className="text-sm text-zinc-500">Total: {formatDuration(dailyTotalMs)}</div>
-        <button onClick={addManual} disabled={!clients.length} className="text-sm text-zinc-600 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:text-zinc-50">
+        <div className="text-sm text-muted">Total: {formatDuration(dailyTotalMs)}</div>
+        <Button variant="ghost" size="sm" onPress={addManual} isDisabled={!clients.length}>
           + Add entry
-        </button>
+        </Button>
       </div>
 
       {entries.length === 0 ? (
-        <p className="text-sm text-zinc-500">No entries.</p>
+        <p className="text-sm text-muted">No entries.</p>
       ) : (
-        <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+        <ul className="divide-y divide-default rounded-lg border border-default">
           {entries.map((e) => (
-            <EntryRow key={e.id} entry={e} clients={clients} now={now} onChange={updateEntry} onDelete={deleteEntry} />
+            <EntryRow key={e.id} entry={e} clients={clients} now={now} onChange={updateEntry} onDelete={setConfirmDeleteId} />
           ))}
         </ul>
+      )}
+
+      {confirmDeleteId !== null && (
+        <ConfirmDialog
+          title="Delete entry?"
+          onConfirm={() => deleteEntry(confirmDeleteId)}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
       )}
     </div>
   );
@@ -196,48 +214,68 @@ function EntryRow({
   return (
     <li className={`px-4 py-3 ${isInvoiced ? "opacity-60" : ""}`}>
       <div className="flex flex-wrap items-center gap-2">
-        <select
+        <Select
+          aria-label="Client"
           value={entry.clientId}
-          onChange={(ev) => onChange(entry.id, { clientId: Number(ev.target.value) })}
-          disabled={isInvoiced}
-          className="rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          onChange={(k: Key | null) => {
+            if (k != null) onChange(entry.id, { clientId: Number(k) });
+          }}
+          isDisabled={isInvoiced}
+          className="w-48"
         >
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-        <input
-          type="datetime-local"
+          <Select.Trigger className="border border-default bg-surface-secondary">
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox>
+              {clients.map((c) => (
+                <ListBox.Item key={c.id} id={c.id} textValue={c.name}>
+                  {c.name}
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+              ))}
+            </ListBox>
+          </Select.Popover>
+        </Select>
+        <TextField
           value={localDateInput(start)}
-          onChange={(ev) => onChange(entry.id, { startedAt: new Date(ev.target.value).toISOString() })}
-          disabled={isInvoiced}
-          className="rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        />
+          onChange={(v) => onChange(entry.id, { startedAt: new Date(v).toISOString() })}
+          aria-label="Start"
+          isDisabled={isInvoiced}
+        >
+          <Input type="datetime-local" />
+        </TextField>
         <span className="text-sm">→</span>
         {entry.endedAt ? (
-          <input
-            type="datetime-local"
+          <TextField
             value={localDateInput(end)}
-            onChange={(ev) => onChange(entry.id, { endedAt: new Date(ev.target.value).toISOString() })}
-            disabled={isInvoiced}
-            className="rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          />
+            onChange={(v) => onChange(entry.id, { endedAt: new Date(v).toISOString() })}
+            aria-label="End"
+            isDisabled={isInvoiced}
+          >
+            <Input type="datetime-local" />
+          </TextField>
         ) : (
           <span className="text-sm text-green-600">running</span>
         )}
         <span className="ml-auto font-mono text-sm">{formatDuration(ms)}</span>
         {!isInvoiced && (
-          <button onClick={() => onDelete(entry.id)} className="text-sm text-red-600">×</button>
+          <Button variant="danger-soft" size="sm" onPress={() => onDelete(entry.id)} aria-label="Delete entry">
+            ×
+          </Button>
         )}
       </div>
-      <input
-        placeholder="Notes"
+      <TextField
         value={entry.notes ?? ""}
-        onChange={(ev) => onChange(entry.id, { notes: ev.target.value })}
-        disabled={isInvoiced}
-        className="mt-2 w-full rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-      />
-      {isInvoiced && <div className="mt-1 text-xs text-zinc-500">Invoiced</div>}
+        onChange={(v) => onChange(entry.id, { notes: v })}
+        aria-label="Notes"
+        isDisabled={isInvoiced}
+        className="mt-2 w-full"
+      >
+        <Input placeholder="Notes" />
+      </TextField>
+      {isInvoiced && <div className="mt-1 text-xs text-muted">Invoiced</div>}
     </li>
   );
 }

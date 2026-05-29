@@ -11,7 +11,6 @@ export async function GET() {
       clientId: invoices.clientId,
       clientName: clients.name,
       issuedDate: invoices.issuedDate,
-      dueDate: invoices.dueDate,
       paidDate: invoices.paidDate,
       status: invoices.status,
       total: sql<string>`COALESCE(SUM(${invoiceLineItems.quantity} * ${invoiceLineItems.unitPrice}), 0)::text`,
@@ -26,7 +25,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const body = await req.json();
-  const { clientId, issuedDate, dueDate, notes, lineItems, timeEntryIds } = body;
+  const { clientId, issuedDate, lineItems, timeEntryIds } = body;
   if (!clientId || !issuedDate) {
     return NextResponse.json({ error: "clientId and issuedDate required" }, { status: 400 });
   }
@@ -42,8 +41,6 @@ export async function POST(req: Request) {
       number: nextNumber,
       clientId: Number(clientId),
       issuedDate,
-      dueDate: dueDate || null,
-      notes: notes ?? null,
       status: "draft",
     })
     .returning();

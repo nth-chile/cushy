@@ -13,11 +13,8 @@ export async function PUT(req: Request) {
   const values = {
     id: 1 as const,
     businessName: body.businessName ?? null,
-    businessAddress: body.businessAddress ?? null,
     businessEmail: body.businessEmail ?? null,
     invoiceNumberStart: Number(body.invoiceNumberStart ?? 1000),
-    defaultEmailSubject: body.defaultEmailSubject ?? null,
-    defaultEmailBody: body.defaultEmailBody ?? null,
     gmailUser: body.gmailUser ?? null,
   };
   const [row] = await db

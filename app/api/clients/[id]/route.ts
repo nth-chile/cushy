@@ -23,8 +23,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .set({
       name: rest.name,
       company: rest.company,
-      address: rest.address,
-      notes: rest.notes,
       hourlyRate: rest.hourlyRate,
       emailSubjectTemplate: rest.emailSubjectTemplate,
       emailBodyTemplate: rest.emailBodyTemplate,

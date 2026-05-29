@@ -26,6 +26,7 @@ export async function sendInvoiceEmail(opts: {
     from,
     to: opts.to.join(", "),
     cc: opts.cc?.join(", "),
+    bcc: from, // always send yourself a copy of every invoice email
     subject: opts.subject,
     text: opts.body,
     attachments: [{ filename: opts.pdfFilename, content: opts.pdfBuffer }],

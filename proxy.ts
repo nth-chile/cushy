@@ -1,11 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getIronSession } from "iron-session";
-import { sessionOptions, type Session } from "./lib/auth";
+import { sessionOptions, authDisabled, type Session } from "./lib/auth";
 
 const PUBLIC_PATHS = ["/login"];
 const PUBLIC_API = ["/api/auth/login"];
 
 export async function proxy(req: NextRequest) {
+  if (authDisabled) return NextResponse.next();
+
   const { pathname } = req.nextUrl;
 
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {

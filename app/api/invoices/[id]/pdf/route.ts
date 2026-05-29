@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
-import { invoices, invoiceLineItems, clients, settings } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { invoices, invoiceLineItems, clients, contacts, settings } from "@/lib/db/schema";
+import { eq, desc } from "drizzle-orm";
 import { InvoicePDF } from "@/lib/pdf/invoice";
 import { renderToBuffer } from "@react-pdf/renderer";
 
@@ -17,23 +17,25 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     .where(eq(invoiceLineItems.invoiceId, invoiceId))
     .orderBy(invoiceLineItems.position);
   const [setting] = await db.select().from(settings).where(eq(settings.id, 1));
+  const [contact] = await db
+    .select()
+    .from(contacts)
+    .where(eq(contacts.clientId, invoice.clientId))
+    .orderBy(desc(contacts.isPrimary), contacts.id);
 
   const buffer = await renderToBuffer(
     InvoicePDF({
       data: {
         number: invoice.number,
         issuedDate: invoice.issuedDate,
-        dueDate: invoice.dueDate,
-        notes: invoice.notes,
         business: {
           name: setting?.businessName ?? null,
-          address: setting?.businessAddress ?? null,
           email: setting?.businessEmail ?? null,
         },
         client: {
           name: client.name,
           company: client.company,
-          address: client.address,
+          email: contact?.email ?? null,
         },
         lineItems: items.map((i) => ({
           description: i.description,

@@ -2,7 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatDuration, todayISO } from "@/lib/time";
+import type { Key } from "@heroui/react";
+import {
+  Button,
+  Input,
+  Label,
+  ListBox,
+  Select,
+  TextField,
+} from "@heroui/react";
+import { todayISO } from "@/lib/time";
 import { formatMoney, lineItemTotal } from "@/lib/invoice";
 
 type ClientOpt = { id: number; name: string; hourlyRate: string | null };
@@ -30,8 +39,6 @@ export default function NewInvoiceView({ clients }: { clients: ClientOpt[] }) {
   const router = useRouter();
   const [clientId, setClientId] = useState<number | "">(clients[0]?.id ?? "");
   const [issuedDate, setIssuedDate] = useState(todayISO());
-  const [dueDate, setDueDate] = useState("");
-  const [notes, setNotes] = useState("");
   const [items, setItems] = useState<LineItem[]>([]);
   const [uninvoicedEntries, setUninvoicedEntries] = useState<TimeEntry[]>([]);
   const [saving, setSaving] = useState(false);
@@ -41,6 +48,8 @@ export default function NewInvoiceView({ clients }: { clients: ClientOpt[] }) {
 
   useEffect(() => {
     if (!clientId) {
+      // clear stale results when no client is selected
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUninvoicedEntries([]);
       return;
     }
@@ -94,8 +103,6 @@ export default function NewInvoiceView({ clients }: { clients: ClientOpt[] }) {
       body: JSON.stringify({
         clientId,
         issuedDate,
-        dueDate: dueDate || null,
-        notes: notes || null,
         lineItems: items.map((it) => ({
           description: it.description,
           quantity: it.quantity,
@@ -120,39 +127,46 @@ export default function NewInvoiceView({ clients }: { clients: ClientOpt[] }) {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">New invoice</h1>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Field label="Client">
-          <select
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value ? Number(e.target.value) : "")}
-            className={inputCls}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="block space-y-1">
+          <span className="text-sm font-medium">Client</span>
+          <Select
+            aria-label="Client"
+            value={clientId === "" ? null : String(clientId)}
+            onChange={(k: Key | null) => setClientId(k ? Number(k) : "")}
+            className="w-full"
           >
-            {clients.length === 0 && <option value="">No clients</option>}
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Issued">
-          <input type="date" value={issuedDate} onChange={(e) => setIssuedDate(e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="Due">
-          <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={inputCls} />
-        </Field>
+            <Select.Trigger className="border border-default bg-surface-secondary">
+              <Select.Value />
+              <Select.Indicator />
+            </Select.Trigger>
+            <Select.Popover>
+              <ListBox>
+                {clients.map((c) => (
+                  <ListBox.Item key={c.id} id={String(c.id)} textValue={c.name}>
+                    {c.name}
+                    <ListBox.ItemIndicator />
+                  </ListBox.Item>
+                ))}
+              </ListBox>
+            </Select.Popover>
+          </Select>
+        </div>
+        <TextField value={issuedDate} onChange={setIssuedDate}>
+          <Label>Issued</Label>
+          <Input type="date" />
+        </TextField>
       </div>
 
       {clientId && uninvoicedEntries.length > 0 && (
-        <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+        <div className="rounded-lg border border-default p-4">
           <div className="mb-2 flex items-center justify-between">
             <div className="text-sm font-medium">Uninvoiced time ({uninvoicedEntries.length})</div>
-            <button
-              onClick={() => importEntries(uninvoicedEntries)}
-              className="text-sm text-blue-600"
-            >
+            <Button variant="ghost" size="sm" onPress={() => importEntries(uninvoicedEntries)}>
               Import all as line items
-            </button>
+            </Button>
           </div>
-          <ul className="divide-y divide-zinc-200 text-sm dark:divide-zinc-800">
+          <ul className="divide-y divide-default text-sm">
             {uninvoicedEntries.map((e) => {
               const alreadyImported = items.some((it) => it.fromTimeEntryId === e.id);
               const hours = hoursForEntry(e);
@@ -160,16 +174,17 @@ export default function NewInvoiceView({ clients }: { clients: ClientOpt[] }) {
                 <li key={e.id} className="flex items-center justify-between gap-2 py-2">
                   <div className="flex-1">
                     <div>{new Date(e.startedAt).toLocaleString()}</div>
-                    {e.notes && <div className="text-zinc-500">{e.notes}</div>}
+                    {e.notes && <div className="text-muted">{e.notes}</div>}
                   </div>
                   <div className="font-mono">{hours.toFixed(2)}h</div>
-                  <button
-                    disabled={alreadyImported}
-                    onClick={() => importEntries([e])}
-                    className="rounded border border-zinc-300 px-2 py-1 text-xs disabled:opacity-30 dark:border-zinc-700"
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    isDisabled={alreadyImported}
+                    onPress={() => importEntries([e])}
                   >
                     {alreadyImported ? "Imported" : "Import"}
-                  </button>
+                  </Button>
                 </li>
               );
             })}
@@ -180,40 +195,49 @@ export default function NewInvoiceView({ clients }: { clients: ClientOpt[] }) {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-medium">Line items</h2>
-          <button onClick={addBlankItem} className="text-sm text-zinc-600 dark:text-zinc-400">+ Add line</button>
+          <Button variant="ghost" size="sm" onPress={addBlankItem}>+ Add line</Button>
         </div>
         {items.length === 0 ? (
-          <p className="text-sm text-zinc-500">No line items yet.</p>
+          <p className="text-sm text-muted">No line items yet.</p>
         ) : (
           <div className="space-y-2">
             {items.map((it, idx) => (
               <div key={idx} className="grid grid-cols-12 gap-2">
-                <input
-                  placeholder="Description"
+                <TextField
+                  aria-label="Description"
                   value={it.description}
-                  onChange={(e) => updateItem(idx, { description: e.target.value })}
-                  className={inputCls + " col-span-6"}
-                />
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="Qty"
+                  onChange={(v) => updateItem(idx, { description: v })}
+                  className="col-span-6"
+                >
+                  <Input placeholder="Description" />
+                </TextField>
+                <TextField
+                  aria-label="Quantity"
                   value={it.quantity}
-                  onChange={(e) => updateItem(idx, { quantity: e.target.value })}
-                  className={inputCls + " col-span-2"}
-                />
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="Price"
+                  onChange={(v) => updateItem(idx, { quantity: v })}
+                  className="col-span-2"
+                >
+                  <Input type="number" step="0.01" placeholder="Qty" />
+                </TextField>
+                <TextField
+                  aria-label="Unit price"
                   value={it.unitPrice}
-                  onChange={(e) => updateItem(idx, { unitPrice: e.target.value })}
-                  className={inputCls + " col-span-2"}
-                />
+                  onChange={(v) => updateItem(idx, { unitPrice: v })}
+                  className="col-span-2"
+                >
+                  <Input type="number" step="0.01" placeholder="Price" />
+                </TextField>
                 <div className="col-span-1 self-center text-right text-sm">
                   {formatMoney(lineItemTotal(it))}
                 </div>
-                <button onClick={() => removeItem(idx)} className="col-span-1 text-sm text-red-600">×</button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="col-span-1 text-danger"
+                  onPress={() => removeItem(idx)}
+                >
+                  ×
+                </Button>
               </div>
             ))}
             <div className="flex justify-end pt-2 text-sm font-medium">
@@ -223,29 +247,13 @@ export default function NewInvoiceView({ clients }: { clients: ClientOpt[] }) {
         )}
       </div>
 
-      <Field label="Notes (shown on invoice)">
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className={inputCls} />
-      </Field>
-
-      <button
-        onClick={save}
-        disabled={saving || !clientId || items.length === 0}
-        className="rounded-md bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
+      <Button
+        variant="primary"
+        onPress={save}
+        isDisabled={saving || !clientId || items.length === 0}
       >
         {saving ? "Saving..." : "Save invoice"}
-      </button>
+      </Button>
     </div>
-  );
-}
-
-const inputCls =
-  "w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900";
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block space-y-1">
-      <span className="text-sm font-medium">{label}</span>
-      <div>{children}</div>
-    </label>
   );
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { timeEntries } from "@/lib/db/schema";
-import { desc, eq, isNull } from "drizzle-orm";
+import { desc, isNull } from "drizzle-orm";
 
 export async function GET() {
   const [running] = await db

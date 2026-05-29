@@ -61,8 +61,6 @@ async function main() {
       .values({
         name: r.name,
         company: null,
-        address: r.address || null,
-        notes: r.note || null,
         hourlyRate: r.rate ? r.rate : null,
       })
       .returning();
@@ -98,7 +96,7 @@ async function main() {
   // for later linking from entries.
   const lineItemIdByInvoiceKey = new Map<string, number>(); // key = `${clientId}::${number}`
   const lineItemsByClient = new Map<number, Array<{ id: number; issuedDate: string }>>();
-  let usedNumbers = new Set<number>();
+  const usedNumbers = new Set<number>();
   for (const r of invoiceRows) {
     const clientId = clientIdByName.get(r.client);
     if (!clientId) continue;
@@ -117,9 +115,7 @@ async function main() {
         number,
         clientId,
         issuedDate: r.issued_on,
-        dueDate: r.due_on || null,
         paidDate: r.paid_on || null,
-        notes: r.note || null,
         status,
       })
       .returning();

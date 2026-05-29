@@ -24,11 +24,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       invoice={invoice}
       client={{ ...client, contacts: clientContacts }}
       lineItems={items}
-      defaults={{
-        subject: setting?.defaultEmailSubject ?? "Invoice {{number}} from {{businessName}}",
-        body: setting?.defaultEmailBody ?? "Hi {{contactName}},\n\nPlease find attached invoice {{number}}.\n\nThanks,\n{{businessName}}",
-        businessName: setting?.businessName ?? "",
-      }}
+      businessName={setting?.businessName ?? ""}
     />
   );
 }

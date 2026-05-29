@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Button, Input, TextField } from "@heroui/react";
 
 export default function LoginPage() {
   return (
@@ -39,24 +40,15 @@ function LoginForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
-      <form onSubmit={submit} className="w-full max-w-sm space-y-4 rounded-lg border border-zinc-200 p-6 dark:border-zinc-800">
+      <form onSubmit={submit} className="w-full max-w-sm space-y-4 rounded-lg border border-default p-6">
         <h1 className="text-xl font-semibold">cushy</h1>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          autoFocus
-          className="w-full rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
-        />
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-md bg-zinc-900 px-3 py-2 text-white disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900"
-        >
+        <TextField value={password} onChange={setPassword} name="password" type="password" autoFocus>
+          <Input placeholder="Password" />
+        </TextField>
+        {error && <p className="text-sm text-danger">{error}</p>}
+        <Button type="submit" variant="primary" isDisabled={loading} className="w-full">
           {loading ? "..." : "Sign in"}
-        </button>
+        </Button>
       </form>
     </div>
   );
